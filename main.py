@@ -59,44 +59,55 @@ if 'rides_df' in st.session_state:
     # יצירת שני טורים: שמאל למפה (רחב וגבוה), ימין לגרפים (אחד מעל השני)
     col_map, col_charts = st.columns([2, 1.5])
 
+    import streamlit as st
+    import requests
+    import pandas as pd
+    import plotly.express as px
 
-    # --- בתוך הלוגיקה של הצגת הנתונים ---
+
+    # פונקציה ייעודית לשליפת נקודות המסלול המדויקות
+    def get_route_geometry(shape_id):
+        if not shape_id:
+            return None
+        # פנייה ל-API של ה-Shapes
+        url = "https://open-bus-stride-api.hasadna.org.il/gtfs_shapes/list"
+        params = {'shape_id': shape_id}
+        res = requests.get(url, params=params)
+        if res.status_code == 200:
+            data = res.json()
+            # ה-API מחזיר רשימת נקודות (lat, lon, sequence)
+            return pd.DataFrame(data).sort_values('shape_pt_sequence')
+        return None
+
+
+    # --- בתוך הלוגיקה של האפליקציה (אחרי הקריאה הראשונה ל-GTFS) ---
+    if fetch_button:
+        # ... (הקוד הקודם שלך לשליפת ה-line_ref) ...
+        if res_gtfs.status_code == 200 and res_gtfs.json():
+            route_info = res_gtfs.json()[0]
+            shape_id = route_info.get('shape_id')  # כאן נמצא המפתח למפה
+
+            # שליפת הגיאומטריה האמיתית
+            shape_df = get_route_geometry(shape_id)
+            st.session_state['shape_df'] = shape_df
+
+    # --- בתוך תצוגת המפה (col_map) ---
     with col_map:
-        with st.container(border=True):
-            st.subheader("📍 מפת מסלול הקו האמיתי")
+        if 'shape_df' in st.session_state and st.session_state['shape_df'] is not None:
+            df_geo = st.session_state['shape_df']
 
-            # חילוץ ה-polyline מנתוני ה-GTFS ששמרנו
-            # הערה: השדה ב-API נקרא לרוב 'route_polyline' או 'polyline'
-            route_info = st.session_state.get('route_info', {})
-            encoded_polyline = route_info.get('polyline')
-
-            if encoded_polyline:
-                # פיענוח המחרוזת לרשימת קואורדינטות (Lat, Lon)
-                path = polyline.decode(encoded_polyline)
-                lat_coords = [p[0] for p in path]
-                lon_coords = [p[1] for p in path]
-
-                # יצירת המפה עם המסלול המפורט
-                fig_map = px.line_mapbox(
-                    lat=lat_coords,
-                    lon=lon_coords,
-                    zoom=12,
-                    height=800
-                )
-
-                # עיצוב הקו שיהיה עבה ובולט על הכבישים
-                fig_map.update_traces(line=dict(width=5, color="blue"))
-
-            else:
-                # הודעת שגיאה במידה ואין נתוני מסלול ב-API עבור הקו הזה
-                st.warning("לא נמצאו נתוני מסלול מפורטים (Shape) עבור קו זה ב-API.")
-                fig_map = px.scatter_mapbox(lat=[32.0853], lon=[34.7818], zoom=11, height=800)
-
-            fig_map.update_layout(
-                mapbox_style="open-street-map",
-                margin={"r": 0, "t": 0, "l": 0, "b": 0}
+            fig_map = px.line_mapbox(
+                df_geo,
+                lat="shape_pt_lat",
+                lon="shape_pt_lon",
+                zoom=12, height=830
             )
+            # עיצוב הקו שיהיה עבה ובולט
+            fig_map.update_traces(line=dict(width=6, color="blue"))
+            fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
             st.plotly_chart(fig_map, use_container_width=True)
+        else:
+            st.warning("לא נמצאו נתוני מסלול מפורטים עבור קו זה.")
 
     with col_charts:
         # גרף 1: Average Duration
