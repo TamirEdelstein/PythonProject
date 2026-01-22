@@ -25,3 +25,4 @@ rides['day_of_week'] = rides['scheduled_start_time'].dt.day_name()
 rides = rides[['id', 'siri_route_id', 'scheduled_start_time', 'duration_minutes', 'hour', 'day_of_week']]
 
 st.dataframe(rides)
+st.line_chart(rides, x='hour', y='duration_minutes')
