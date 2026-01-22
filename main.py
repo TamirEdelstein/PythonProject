@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.express as px
 
 # --- הגדרות עמוד ---
-st.set_page_config(layout="wide", page_title="Bus Route & Performance Analysis")
+st.set_page_config(layout="wide", page_title="Bus Analysis Dashboard")
 
-st.title("ניתוח קו אוטובוס: מסלול גיאוגרפי וביצועי נסיעה")
+st.title("ניתוח קו אוטובוס: מסלול וביצועים")
 
 # --- ממשק קלט ---
 with st.container(border=True):
@@ -34,9 +34,8 @@ if submit:
         route_info = res_routes.json()[0]
         line_ref = route_info.get('line_ref')
         route_name = route_info.get('route_long_name', 'קו לא ידוע')
-        agency = route_info.get('agency_name', 'מפעיל לא ידוע')
 
-        st.info(f"**קו:** {route_name} | **מפעיל:** {agency}")
+        st.info(f"**קו:** {route_name} (Line Ref: {line_ref})")
 
         # --- שלב 2: שליפת נתוני מפה (2023) מ-gtfs_ride_stops ---
         url_stops = "https://open-bus-stride-api.hasadna.org.il/gtfs_ride_stops/list"
@@ -58,58 +57,71 @@ if submit:
         }
         res_siri = requests.get(url_siri, params=params_siri)
 
-        # --- תצוגת התוצאות ---
-        st.divider()
-        col_map, col_charts = st.columns([2, 1.5])
+        # --- עיבוד נתונים לגרפים ---
+        if res_siri.status_code == 200:
+            df_siri = pd.DataFrame(res_siri.json())
+            if not df_siri.empty:
+                df_siri['scheduled_start_time'] = pd.to_datetime(df_siri['scheduled_start_time'])
+                df_siri['hour'] = df_siri['scheduled_start_time'].dt.hour
+                df_siri['day_name'] = df_siri['scheduled_start_time'].dt.day_name()
 
-        # חלק המפה (צד שמאל)
-        with col_map:
-            with st.container(border=True):
-                st.subheader("📍 מסלול הקו (לפי עצירות)")
-                if res_stops.status_code == 200:
-                    df_stops = pd.DataFrame(res_stops.json())
-                    lat_col, lon_col = 'gtfs_stop__lat', 'gtfs_stop__lon'
+                # הגדרת סדר ימים ובחירה בדיפולט
+                days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+                available_days = [d for d in days_order if d in df_siri['day_name'].unique()]
 
-                    if not df_stops.empty and lat_col in df_stops.columns:
-                        # ניקוי כפילויות של תחנות לצורך מפה נקייה
-                        df_map = df_stops.dropna(subset=[lat_col, lon_col]).drop_duplicates(subset=['stop_sequence'])
-                        df_map = df_map.sort_values('stop_sequence')
+                # --- תצוגה ---
+                st.divider()
 
-                        fig_map = px.line_mapbox(
-                            df_map, lat=lat_col, lon=lon_col,
-                            hover_name="gtfs_stop__name" if "gtfs_stop__name" in df_map.columns else None,
-                            zoom=12, height=750
-                        )
-                        fig_map.update_traces(line=dict(width=6, color="blue"), mode="lines+markers",
-                                              marker=dict(size=10, color="red"))
-                        fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
-                        st.plotly_chart(fig_map, use_container_width=True)
-                    else:
-                        st.warning("לא נמצאו נתוני מיקום בטווח הזמן שנבחר.")
+                # פילטר יום (מחוץ לעמודות כדי שישפיע על הכל)
+                selected_day = st.selectbox("בחר יום בשבוע לניתוח הגרפים:", options=available_days, index=0)
 
-        # חלק הגרפים (צד ימין)
-        with col_charts:
-            if res_siri.status_code == 200:
-                df_siri = pd.DataFrame(res_siri.json())
-                if not df_siri.empty:
-                    df_siri['scheduled_start_time'] = pd.to_datetime(df_siri['scheduled_start_time'])
-                    df_siri['hour'] = df_siri['scheduled_start_time'].dt.hour
+                filtered_siri = df_siri[df_siri['day_name'] == selected_day]
 
-                    # גרף 1: משך נסיעה ממוצע
+                col_map, col_charts = st.columns([2, 1.5])
+
+                # חלק המפה
+                with col_map:
                     with st.container(border=True):
-                        st.markdown("### Average Duration (min)")
-                        avg_dur = df_siri.groupby('hour')['duration_minutes'].mean().reset_index()
+                        st.subheader(f"📍 מסלול הקו (לפי עצירות)")
+                        if res_stops.status_code == 200:
+                            df_stops = pd.DataFrame(res_stops.json())
+                            lat_col, lon_col = 'gtfs_stop__lat', 'gtfs_stop__lon'
+
+                            if not df_stops.empty and lat_col in df_stops.columns:
+                                df_map = df_stops.dropna(subset=[lat_col, lon_col]).drop_duplicates(
+                                    subset=['stop_sequence'])
+                                df_map = df_map.sort_values('stop_sequence')
+
+                                fig_map = px.line_mapbox(
+                                    df_map, lat=lat_col, lon=lon_col,
+                                    hover_name="gtfs_stop__name" if "gtfs_stop__name" in df_map.columns else None,
+                                    zoom=12, height=750
+                                )
+                                fig_map.update_traces(line=dict(width=6, color="blue"), mode="lines+markers",
+                                                      marker=dict(size=10, color="red"))
+                                fig_map.update_layout(mapbox_style="open-street-map",
+                                                      margin={"r": 0, "t": 0, "l": 0, "b": 0})
+                                st.plotly_chart(fig_map, use_container_width=True)
+                            else:
+                                st.warning("לא נמצאו נתונים גיאוגרפיים ב-gtfs_ride_stops.")
+
+                # חלק הגרפים
+                with col_charts:
+                    # גרף 1
+                    with st.container(border=True):
+                        st.markdown(f"### Average Duration - {selected_day}")
+                        avg_dur = filtered_siri.groupby('hour')['duration_minutes'].mean().reset_index()
                         fig_line = px.line(avg_dur, x='hour', y='duration_minutes', markers=True)
                         fig_line.update_layout(height=340)
                         st.plotly_chart(fig_line, use_container_width=True)
 
-                    # גרף 2: התפלגות נסיעות
+                    # גרף 2
                     with st.container(border=True):
-                        st.markdown("### Ride Distribution")
-                        fig_hist = px.histogram(df_siri, x='hour', nbins=24, color_discrete_sequence=['#ff4b4b'])
-                        fig_hist.update_layout(height=340, bargap=0.1)
+                        st.markdown(f"### Ride Distribution - {selected_day}")
+                        fig_hist = px.histogram(filtered_siri, x='hour', nbins=24, color_discrete_sequence=['#ff4b4b'])
+                        fig_hist.update_layout(height=340, bargap=0.1, yaxis_title="כמות נסיעות")
                         st.plotly_chart(fig_hist, use_container_width=True)
-                else:
-                    st.warning("לא נמצאו נתוני נסיעות (SIRI) לגרפים.")
+            else:
+                st.warning("לא נמצאו נתוני נסיעות (SIRI) לגרפים.")
     else:
         st.error("לא נמצא קו תואם ב-GTFS.")
