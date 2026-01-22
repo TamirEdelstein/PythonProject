@@ -4,160 +4,126 @@ import pandas as pd
 import plotly.express as px
 
 # --- הגדרות עמוד ---
-st.set_page_config(layout="wide", page_title="Bus Route & Map Analysis")
+st.set_page_config(layout="wide", page_title="Bus Analysis System")
 
-st.title("מערכת ניתוח קווי תחבורה ציבורית - מסלול וזמני נסיעה")
+st.title("מערכת ניתוח תחבורה ציבורית - מפה מבוססת gtfs_ride_stops")
 
 
-# --- פונקציה אמינה לשליפת מפה לפי תחנות הקו ---
-def get_route_stops_geometry(internal_route_id):
-    """שליפת מיקומי התחנות של הקו - מקור הנתונים היציב ביותר במערכת"""
-    url = "https://open-bus-stride-api.hasadna.org.il/gtfs_stop_times/list"
+# --- פונקציה לשליפת המפה מה-Endpoint הקיים אצלך ---
+def get_map_data(internal_route_id):
+    """שליפת מיקומי תחנות מתוך הטבלה gtfs_ride_stops"""
+    url = "https://open-bus-stride-api.hasadna.org.il/gtfs_ride_stops/list"
+
+    # חיפוש עצירות שמשויכות ל-ID של הקו
     params = {
-        'gtfs_route_id': internal_route_id,
-        'limit': 150  # כיסוי של כל התחנות במסלול
+        'gtfs_stop__gtfs_route_id': internal_route_id,
+        'limit': 150
     }
     try:
         res = requests.get(url, params=params)
         if res.status_code == 200:
             data = res.json()
             if data:
-                stops_list = []
+                stops = []
                 for entry in data:
-                    stop_info = entry.get('gtfs_stop', {})
-                    if stop_info:
-                        stops_list.append({
-                            'lat': stop_info.get('lat'),
-                            'lon': stop_info.get('lon'),
-                            'sequence': entry.get('stop_sequence'),
-                            'stop_name': stop_info.get('name')
+                    # המידע הגיאוגרפי נמצא בתוך אובייקט gtfs_stop
+                    s_info = entry.get('gtfs_stop', {})
+                    if s_info:
+                        stops.append({
+                            'lat': s_info.get('lat'),
+                            'lon': s_info.get('lon'),
+                            'name': s_info.get('name'),
+                            'seq': entry.get('stop_sequence', 0)
                         })
-                if stops_list:
-                    # יצירת DataFrame ומיון לפי סדר התחנות בקו
-                    return pd.DataFrame(stops_list).sort_values('sequence')
+                if stops:
+                    # ניקוי כפילויות ומיון לפי סדר התחנות
+                    df = pd.DataFrame(stops).drop_duplicates(subset=['lat', 'lon'])
+                    return df.sort_values('seq')
     except Exception as e:
-        st.error(f"שגיאה בגישה לנתוני המפה: {e}")
+        st.error(f"שגיאה בשליפת המפה: {e}")
     return None
 
 
-# --- שלב 1: ממשק קלט למשתמש ---
+# --- ממשק קלט ---
 with st.container(border=True):
-    col_in1, col_in2 = st.columns(2)
-    with col_in1:
-        line_num = st.text_input("מספר קו (route_short_name):", placeholder="לדוגמה: 1")
-    with col_in2:
-        city_name = st.text_input("עיר (route_long_name_contains):", placeholder="לדוגמה: בת ים")
+    c1, c2 = st.columns(2)
+    line_num = c1.text_input("מספר קו:", value="1")
+    city = c2.text_input("עיר:", value="בת ים")
+    btn = st.button("טען נתונים וצייר מפה", use_container_width=True)
 
-    fetch_btn = st.button("טען נתונים והצג מפה", use_container_width=True)
-
-# לוגיקת שליפת הנתונים
-if fetch_btn and line_num and city_name:
-    # 1. חיפוש ראשוני ב-GTFS
+if btn:
+    # 1. מציאת הקו ב-gtfs_routes
     url_gtfs = "https://open-bus-stride-api.hasadna.org.il/gtfs_routes/list"
-    params_gtfs = {
-        'route_short_name': line_num,
-        'route_long_name_contains': city_name,
-        'date_from': '2023-01-01',
-        'date_to': '2023-01-01'
-    }
+    res_gtfs = requests.get(url_gtfs, params={
+        'route_short_name': line_num, 'route_long_name_contains': city,
+        'date_from': '2023-01-01', 'date_to': '2023-01-01'
+    })
 
-    res_gtfs = requests.get(url_gtfs, params=params_gtfs)
     if res_gtfs.status_code == 200 and res_gtfs.json():
-        first_route = res_gtfs.json()[0]
-        st.session_state['route_name'] = first_route.get('route_long_name', 'שם קו לא ידוע')
-        st.session_state['agency_name'] = first_route.get('agency_name', '')
+        route = res_gtfs.json()[0]
+        internal_id = route['id']  # ה-ID מהטבלה שצילמת
+        l_ref = route['line_ref']
+        st.session_state['route_name'] = route.get('route_long_name')
+        st.session_state['agency'] = route.get('agency_name')
 
-        internal_id = first_route['id']
-        l_ref = first_route['line_ref']
+        # 2. שליפת המפה מה-Endpoint החדש
+        st.session_state['map_df'] = get_map_data(internal_id)
 
-        # 2. שליפת נתוני נסיעות (SIRI)
-        url_siri = "https://open-bus-stride-api.hasadna.org.il/siri_rides/list"
-        params_siri = {
-            'limit': -1,
-            'gtfs_route__date_from': '2024-01-14',
-            'gtfs_route__date_to': '2024-01-20',
-            'gtfs_route__line_refs': l_ref
-        }
-        res_siri = requests.get(url_siri, params=params_siri)
-
+        # 3. שליפת נתוני נסיעות (SIRI)
+        res_siri = requests.get("https://open-bus-stride-api.hasadna.org.il/siri_rides/list", params={
+            'limit': -1, 'gtfs_route__line_refs': l_ref,
+            'gtfs_route__date_from': '2024-01-14', 'gtfs_route__date_to': '2024-01-20'
+        })
         if res_siri.status_code == 200:
-            df_rides = pd.DataFrame(res_siri.json())
-            if not df_rides.empty:
-                df_rides['scheduled_start_time'] = pd.to_datetime(df_rides['scheduled_start_time'])
-                df_rides['hour'] = df_rides['scheduled_start_time'].dt.hour
-                df_rides['day_of_week'] = df_rides['scheduled_start_time'].dt.day_name()
-
-                st.session_state['rides_df'] = df_rides
-                # שליפת מפה מבוססת תחנות
-                st.session_state['geo_df'] = get_route_stops_geometry(internal_id)
-                st.success("הנתונים והמפה נטענו בהצלחה!")
-            else:
-                st.error("לא נמצאו נסיעות ב-SIRI עבור קו זה.")
+            df_r = pd.DataFrame(res_siri.json())
+            if not df_r.empty:
+                df_r['scheduled_start_time'] = pd.to_datetime(df_r['scheduled_start_time'])
+                df_r['day_of_week'] = df_r['scheduled_start_time'].dt.day_name()
+                df_r['hour'] = df_r['scheduled_start_time'].dt.hour
+                st.session_state['rides_df'] = df_r
+                st.success("הנתונים נטענו בהצלחה!")
     else:
-        st.error("הקו לא נמצא ב-GTFS. וודא שמספר הקו והעיר נכונים.")
+        st.error("לא נמצא קו תואם.")
 
-# --- שלב 2: תצוגה ---
+# --- תצוגה ---
 if 'rides_df' in st.session_state:
     st.divider()
 
-    # כרטיס מידע על הקו
-    c1, c2 = st.columns([3, 1])
-    with c1:
-        st.info(f"**מסלול הקו:** {st.session_state['route_name']}")
-    with c2:
-        st.metric("מפעיל", st.session_state['agency_name'])
+    # כרטיס שם הקו
+    col_head1, col_head2 = st.columns([3, 1])
+    col_head1.info(f"**מסלול:** {st.session_state.get('route_name')}")
+    col_head2.metric("מפעיל", st.session_state.get('agency'))
 
-    # בחירת יום (ראשון כברירת מחדל)
-    days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-    actual_days = [day for day in days_order if day in st.session_state['rides_df']['day_of_week'].unique()]
+    # סינון ימים (ברירת מחדל יום ראשון)
+    days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    available = [d for d in days if d in st.session_state['rides_df']['day_of_week'].unique()]
+    sel_day = st.selectbox("בחר יום:", options=available, index=0)
 
-    sel_day = st.selectbox('בחר יום להצגה:', options=actual_days, index=0)
     filtered = st.session_state['rides_df'][st.session_state['rides_df']['day_of_week'] == sel_day]
 
-    # פריסת מפה וגרפים
-    col_map, col_charts = st.columns([2, 1.5])
+    col_left, col_right = st.columns([2, 1.5])
 
-    with col_map:
+    with col_left:
         with st.container(border=True):
-            st.subheader("📍 מפת תחנות ומסלול הקו")
-            if st.session_state.get('geo_df') is not None:
-                df_geo = st.session_state['geo_df']
-                # יצירת מפה
-                fig_map = px.line_mapbox(
-                    df_geo, lat="lat", lon="lon",
-                    hover_name="stop_name",
-                    zoom=11, height=800
-                )
-                # עיצוב בולט
-                fig_map.update_traces(
-                    line=dict(width=6, color="blue"),
-                    mode="lines+markers",
-                    marker=dict(size=12, color="red")
-                )
-                fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
-                st.plotly_chart(fig_map, use_container_width=True)
+            st.subheader("📍 מפת מסלול (לפי תחנות)")
+            if st.session_state.get('map_df') is not None:
+                fig = px.line_mapbox(st.session_state['map_df'], lat="lat", lon="lon",
+                                     hover_name="name", zoom=11, height=800)
+                # עיצוב הקו - עבה מאוד (8) ונקודות (תחנות) בולטות
+                fig.update_traces(line=dict(width=8, color="blue"), mode="lines+markers",
+                                  marker=dict(size=12, color="red"))
+                fig.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
+                st.plotly_chart(fig, use_container_width=True)
             else:
-                st.warning("לא נמצאו נתוני מיקום עבור תחנות הקו.")
+                st.warning("לא נמצאו נתוני מיקום בטבלת gtfs_ride_stops.")
 
-    with col_charts:
-        # גרף 1: משך נסיעה
+    with col_right:
         with st.container(border=True):
-            st.markdown("### Average Duration (min)")
-            if not filtered.empty:
-                line_data = filtered.groupby('hour')['duration_minutes'].mean().reset_index()
-                fig_l = px.line(line_data, x='hour', y='duration_minutes', line_shape='spline', markers=True)
-                fig_l.update_layout(height=350)
-                st.plotly_chart(fig_l, use_container_width=True)
+            st.markdown("### Average Duration")
+            avg = filtered.groupby('hour')['duration_minutes'].mean().reset_index()
+            st.plotly_chart(px.line(avg, x='hour', y='duration_minutes'), use_container_width=True)
 
-        # גרף 2: התפלגות נסיעות
         with st.container(border=True):
             st.markdown("### Ride Distribution")
-            if not filtered.empty:
-                fig_h = px.histogram(filtered, x='hour', nbins=24, color_discrete_sequence=['#ff4b4b'])
-                fig_h.update_layout(height=350, bargap=0.1, yaxis_title="מספר נסיעות")
-                st.plotly_chart(fig_h, use_container_width=True)
-
-    # טבלה מלאה
-    with st.expander("צפה בטבלת הנתונים המלאה"):
-        st.dataframe(filtered[['id', 'scheduled_start_time', 'duration_minutes', 'hour', 'day_of_week']],
-                     use_container_width=True)
+            st.plotly_chart(px.histogram(filtered, x='hour', color_discrete_sequence=['#ff4b4b']),
+                            use_container_width=True)
