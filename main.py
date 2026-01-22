@@ -5,11 +5,6 @@ import numpy as np
 
 st.write("Welcome to the Israel Public Transit Analytics App 📊 !")
 
-
-name = st.text_input('Enter your name:', '')
-if name:
-    st.write(f'Hello {name}!,welcome to Weather App!')
-
 url = "https://open-bus-stride-api.hasadna.org.il/siri_rides/list"
 response = requests.get(url, params={
     'limit': -1,
