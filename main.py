@@ -45,7 +45,7 @@ with col1:
         # עיבוד נתונים לגרף הקו
         line_data = filtered_rides.groupby('hour')['duration_minutes'].mean().reset_index()
 
-        fig_line = px.line(line_data, x='hour', y='Average Ride Duration [min]',
+        fig_line = px.line(line_data, x='hour', y='duration_minutes',
                            line_shape='spline', render_mode='svg')
         fig_line.update_traces(mode='lines+markers')
 
