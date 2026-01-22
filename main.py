@@ -74,3 +74,38 @@ if st.button("טען נתונים"):
             st.error(f"אירעה שגיאה בתהליך: {e}")
     else:
         st.info("אנא הזן מספר קו ושם עיר כדי להתחיל.")
+
+        # (בדוגמה שלך הפילטר היה בתוך הקונטיינר, כאן החזרתי אותו למעלה כפי שהיה בקוד הקודם לנוחות)
+        days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        selected_day = st.selectbox('Select a Day', options=days_order, index=0)
+
+        # סינון הנתונים
+        filtered_rides = rides[rides['day_of_week'] == selected_day]
+
+        # --- יצירת טורים רחבים ---
+        col1, col2 = st.columns(2)
+
+        # --- גרף 1 (שמאל) ---
+        with col1:
+            with st.container(border=True):
+                st.subheader("Average Duration")
+                line_data = filtered_rides.groupby('hour')['duration_minutes'].mean().reset_index()
+                fig_line = px.line(line_data, x='hour', y='duration_minutes',
+                                   line_shape='spline', render_mode='svg')
+                fig_line.update_traces(mode='lines+markers')
+                fig_line.update_layout(margin=dict(l=20, r=20, t=20, b=20))
+
+                # --- 2. הגדרת גובה קבוע לקבלת מראה ריבועי ---
+                # use_container_width=True דואג לרוחב, height=550 דואג לגובה
+                st.plotly_chart(fig_line, use_container_width=True, height=550)
+
+        # --- גרף 2 (ימין) ---
+        with col2:
+            with st.container(border=True):
+                st.subheader("Ride Distribution")
+                fig_hist = px.histogram(filtered_rides, x='hour', nbins=15,
+                                        color_discrete_sequence=['#ff4b4b'])
+                fig_hist.update_layout(bargap=0.1, margin=dict(l=20, r=20, t=20, b=20))
+
+                # --- 2. הגדרת גובה קבוע גם כאן ---
+                st.plotly_chart(fig_hist, use_container_width=True, height=550)
