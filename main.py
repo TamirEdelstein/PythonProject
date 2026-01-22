@@ -61,13 +61,29 @@ if 'rides_df' in st.session_state:
     with col_map:
         with st.container(border=True):
             st.subheader("📍 מפת מסלול הקו")
-            # יצירת מפה גבוהה לאורך
-            # כאן מומלץ להזין קואורדינטות אמיתיות מה-route_info אם קיימות
+
+            # נתוני הדוגמה שלך
+            lats = [32.0853]
+            lons = [34.7818]
+
             fig_map = px.scatter_mapbox(
-                lat=[32.0853], lon=[34.7818],
-                zoom=11, height=830  # גובה כפול כדי שיתאים לשני הגרפים מימין
+                lat=lats,
+                lon=lons,
+                zoom=11,
+                height=830
             )
-            fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
+
+            # עדכון גודל הנקודות (marker size)
+            fig_map.update_traces(
+                marker=dict(size=20, color="blue"),  # שנה את size לערך גדול יותר במידת הצורך
+                selector=dict(type='scattermapbox')
+            )
+
+            fig_map.update_layout(
+                mapbox_style="open-street-map",
+                margin={"r": 0, "t": 0, "l": 0, "b": 0}
+            )
+
             st.plotly_chart(fig_map, use_container_width=True)
 
     with col_charts:
