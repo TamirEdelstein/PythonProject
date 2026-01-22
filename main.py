@@ -19,7 +19,7 @@ def get_map_data_fixed(line_ref):
         # הפרמטרים שהגדרת שחובה להכניס:
         'arrival_time_from': '2023-01-22T12:31:08.469Z',
         'arrival_time_to': '2023-01-22T14:31:08.469Z',
-        'limit': 150
+        'limit': -1
     }
 
     try:
