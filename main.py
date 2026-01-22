@@ -62,21 +62,33 @@ if 'rides_df' in st.session_state:
         with st.container(border=True):
             st.subheader("📍 מפת מסלול הקו")
 
-            # נתוני הדוגמה שלך
-            lats = [32.0853]
-            lons = [34.7818]
+            # שלב א': חילוץ נתוני הגיאומטריה (אם קיימים ב-route_info)
+            # במידה וה-API מחזיר רשימת קואורדינטות בשדה 'route_shape' או דומה:
+            if 'route_info' in st.session_state and 'polyline' in st.session_state['route_info']:
+                # פיענוח הפולי-ליין לקואורדינטות (דורש import polyline)
+                import polyline
 
-            fig_map = px.scatter_mapbox(
-                lat=lats,
-                lon=lons,
+                path = polyline.decode(st.session_state['route_info']['polyline'])
+                lat_coords = [p[0] for p in path]
+                lon_coords = [p[1] for p in path]
+            else:
+                # ברירת מחדל למקרה שאין עדיין נתונים גיאוגרפיים מה-API:
+                # כאן נכניס רשימת קואורדינטות (למשל של התחנות)
+                lat_coords = [32.0853, 32.0712, 32.0511]  # דוגמה למסלול
+                lon_coords = [34.7818, 34.7818, 34.7718]
+
+            # שלב ב': יצירת המפה עם קו (line_mapbox) במקום נקודה בודדת
+            fig_map = px.line_mapbox(
+                lat=lat_coords,
+                lon=lon_coords,
                 zoom=11,
                 height=830
             )
 
-            # עדכון גודל הנקודות (marker size)
+            # שלב ג': עיצוב הקו שיהיה בולט מאוד
             fig_map.update_traces(
-                marker=dict(size=20, color="blue"),  # שנה את size לערך גדול יותר במידת הצורך
-                selector=dict(type='scattermapbox')
+                line=dict(width=6, color="blue"),  # עובי קו 6 בולט מאוד
+                mode="lines+markers"  # שילוב של קו ונקודות לנוחות מקסימלית
             )
 
             fig_map.update_layout(
