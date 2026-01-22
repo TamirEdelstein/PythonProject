@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import plotly.express as px
+import polyline  # ייבוא הספרייה בתחילת הקובץ
 
 # הגדרת עמוד רחב
 st.set_page_config(layout="wide")
@@ -58,44 +59,43 @@ if 'rides_df' in st.session_state:
     # יצירת שני טורים: שמאל למפה (רחב וגבוה), ימין לגרפים (אחד מעל השני)
     col_map, col_charts = st.columns([2, 1.5])
 
+
+    # --- בתוך הלוגיקה של הצגת הנתונים ---
     with col_map:
         with st.container(border=True):
-            st.subheader("📍 מפת מסלול הקו")
+            st.subheader("📍 מפת מסלול הקו האמיתי")
 
-            # שלב א': חילוץ נתוני הגיאומטריה (אם קיימים ב-route_info)
-            # במידה וה-API מחזיר רשימת קואורדינטות בשדה 'route_shape' או דומה:
-            if 'route_info' in st.session_state and 'polyline' in st.session_state['route_info']:
-                # פיענוח הפולי-ליין לקואורדינטות (דורש import polyline)
-                import polyline
+            # חילוץ ה-polyline מנתוני ה-GTFS ששמרנו
+            # הערה: השדה ב-API נקרא לרוב 'route_polyline' או 'polyline'
+            route_info = st.session_state.get('route_info', {})
+            encoded_polyline = route_info.get('polyline')
 
-                path = polyline.decode(st.session_state['route_info']['polyline'])
+            if encoded_polyline:
+                # פיענוח המחרוזת לרשימת קואורדינטות (Lat, Lon)
+                path = polyline.decode(encoded_polyline)
                 lat_coords = [p[0] for p in path]
                 lon_coords = [p[1] for p in path]
+
+                # יצירת המפה עם המסלול המפורט
+                fig_map = px.line_mapbox(
+                    lat=lat_coords,
+                    lon=lon_coords,
+                    zoom=12,
+                    height=800
+                )
+
+                # עיצוב הקו שיהיה עבה ובולט על הכבישים
+                fig_map.update_traces(line=dict(width=5, color="blue"))
+
             else:
-                # ברירת מחדל למקרה שאין עדיין נתונים גיאוגרפיים מה-API:
-                # כאן נכניס רשימת קואורדינטות (למשל של התחנות)
-                lat_coords = [32.0853, 32.0712, 32.0511]  # דוגמה למסלול
-                lon_coords = [34.7818, 34.7818, 34.7718]
-
-            # שלב ב': יצירת המפה עם קו (line_mapbox) במקום נקודה בודדת
-            fig_map = px.line_mapbox(
-                lat=lat_coords,
-                lon=lon_coords,
-                zoom=11,
-                height=830
-            )
-
-            # שלב ג': עיצוב הקו שיהיה בולט מאוד
-            fig_map.update_traces(
-                line=dict(width=6, color="blue"),  # עובי קו 6 בולט מאוד
-                mode="lines+markers"  # שילוב של קו ונקודות לנוחות מקסימלית
-            )
+                # הודעת שגיאה במידה ואין נתוני מסלול ב-API עבור הקו הזה
+                st.warning("לא נמצאו נתוני מסלול מפורטים (Shape) עבור קו זה ב-API.")
+                fig_map = px.scatter_mapbox(lat=[32.0853], lon=[34.7818], zoom=11, height=800)
 
             fig_map.update_layout(
                 mapbox_style="open-street-map",
                 margin={"r": 0, "t": 0, "l": 0, "b": 0}
             )
-
             st.plotly_chart(fig_map, use_container_width=True)
 
     with col_charts:
