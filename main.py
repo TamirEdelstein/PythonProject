@@ -28,26 +28,33 @@ rides = rides[['id', 'siri_route_id', 'scheduled_start_time', 'duration_minutes'
 st.dataframe(rides)
 
 
-# 1. הגדרת רשימת הימים וקביעת "Sunday" כדיפולט
+# --- 1. הגדרת הפילטר (מופיע פעם אחת בראש הדף) ---
 days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-
-# 2. מיקום הסליידר מעל הגרף (פשוט מסירים את ה-sidebar)
 selected_day = st.selectbox('Select a Day', options=days_order, index=0)
 
-# 3. סינון הנתונים
+# --- 2. סינון הנתונים (מתבצע פעם אחת עבור כל הגרפים) ---
 filtered_rides = rides[rides['day_of_week'] == selected_day]
 
-# 4. החלקת הגרף (Aggregation)
-# אנחנו מחשבים את ממוצע משך הנסיעה לכל שעה כדי שתהיה נקודה אחת בלבד בשעה
-chart_data = filtered_rides.groupby('hour')['duration_minutes'].mean().reset_index()
+# --- 3. גרף 1: משך נסיעה ממוצע (Line Plot) ---
+st.subheader(f"Average Ride Duration on {selected_day}")
 
-# 5. יצירת הגרף עם קו מעוגל (spline)
-fig = px.line(chart_data, x='hour', y='duration_minutes',
-              title=f'Average Ride Duration by Hour on {selected_day}',
-              line_shape='spline', # הופך את הקו למעוגל ולא שבור
-              render_mode='svg')
+# קיבוץ נתונים לממוצע לפי שעה כדי למנוע את הזיג-זג
+line_data = filtered_rides.groupby('hour')['duration_minutes'].mean().reset_index()
 
-# שיפור נראות - הוספת נקודות על הקו
-fig.update_traces(mode='lines+markers')
+fig_line = px.line(line_data, x='hour', y='duration_minutes',
+                   line_shape='spline', render_mode='svg')
+fig_line.update_traces(mode='lines+markers')
+st.plotly_chart(fig_line)
 
-st.plotly_chart(fig)
+# --- 4. גרף 2: התפלגות נסיעות (Histogram / Displot) ---
+st.subheader(f"Distribution of Rides by Hour on {selected_day}")
+
+fig_hist = px.histogram(filtered_rides, x='hour',
+                        nbins=15,
+                        title=None,
+                        color_discrete_sequence=['#ff4b4b']) # צבע אדום-סטרימליט
+
+# הוספת עיצוב לצירים
+fig_hist.update_layout(bargap=0.1, xaxis_title="Hour of Day", yaxis_title="Number of Rides")
+
+st.plotly_chart(fig_hist)
