@@ -27,11 +27,27 @@ rides = rides[['id', 'siri_route_id', 'scheduled_start_time', 'duration_minutes'
 
 st.dataframe(rides)
 
-# Create a dropdown in the sidebar
-selected_day = st.sidebar.selectbox('Select a Day', rides['day_of_week'].unique())
-# Filter data based on selection
+
+# 1. הגדרת רשימת הימים וקביעת "Sunday" כדיפולט
+days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+# 2. מיקום הסליידר מעל הגרף (פשוט מסירים את ה-sidebar)
+selected_day = st.selectbox('Select a Day', options=days_order, index=0)
+
+# 3. סינון הנתונים
 filtered_rides = rides[rides['day_of_week'] == selected_day]
-# Plot the dynamic data
-fig = px.line(filtered_rides, x='hour', y='duration_minutes',
-              title=f'Ride Duration by Hour on {selected_day}')
+
+# 4. החלקת הגרף (Aggregation)
+# אנחנו מחשבים את ממוצע משך הנסיעה לכל שעה כדי שתהיה נקודה אחת בלבד בשעה
+chart_data = filtered_rides.groupby('hour')['duration_minutes'].mean().reset_index()
+
+# 5. יצירת הגרף עם קו מעוגל (spline)
+fig = px.line(chart_data, x='hour', y='duration_minutes',
+              title=f'Average Ride Duration by Hour on {selected_day}',
+              line_shape='spline', # הופך את הקו למעוגל ולא שבור
+              render_mode='svg')
+
+# שיפור נראות - הוספת נקודות על הקו
+fig.update_traces(mode='lines+markers')
+
 st.plotly_chart(fig)
