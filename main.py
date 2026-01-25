@@ -92,17 +92,17 @@ if 'df_siri' in st.session_state:
                     fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
                     st.plotly_chart(fig_map, use_container_width=True)
 
-    # חלק הגרפים
+        # חלק הגרפים
     with col_charts:
         with st.container(border=True):
             st.markdown(f"### Average Duration - {selected_day}")
             avg_dur = filtered_siri.groupby('hour')['duration_minutes'].mean().reset_index()
-            fig_line = px.line(avg_dur, x='hour', y='duration [minutes]', markers=True)
+            fig_line = px.line(avg_dur, x='hour', y='duration_minutes', markers=True)
             fig_line.update_layout(height=340)
             st.plotly_chart(fig_line, use_container_width=True)
 
         with st.container(border=True):
             st.markdown(f"### Ride Distribution - {selected_day}")
             fig_hist = px.histogram(filtered_siri, x='hour', nbins=24, color_discrete_sequence=['#ff4b4b'])
-            fig_hist.update_layout(height=340, bargap=0.1, yaxis_title="Trips count")
+            fig_hist.update_layout(height=340, bargap=0.1, yaxis_title="כמות נסיעות")
             st.plotly_chart(fig_hist, use_container_width=True)
