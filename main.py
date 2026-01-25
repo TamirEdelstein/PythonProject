@@ -104,5 +104,5 @@ if 'df_siri' in st.session_state:
         with st.container(border=True):
             st.markdown(f"### Ride Distribution - {selected_day}")
             fig_hist = px.histogram(filtered_siri, x='hour', nbins=24, color_discrete_sequence=['#ff4b4b'])
-            fig_hist.update_layout(height=340, bargap=0.1, yaxis_title="כמות נסיעות")
+            fig_hist.update_layout(height=340, bargap=0.1, yaxis_title="trips count")
             st.plotly_chart(fig_hist, use_container_width=True)
