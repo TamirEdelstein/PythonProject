@@ -70,7 +70,7 @@ if 'df_siri' in st.session_state:
     days_order = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     available_days = [d for d in days_order if d in df_siri['day_name'].unique()]
 
-    selected_day = st.selectbox("בחר יום בשבוע לניתוח הגרפים:", options=available_days, index=0)
+    selected_day = st.selectbox("Select week day", options=available_days, index=0)
     filtered_siri = df_siri[df_siri['day_name'] == selected_day]
 
     col_map, col_charts = st.columns([2, 1.5])
