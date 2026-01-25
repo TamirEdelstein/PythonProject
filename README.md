@@ -1,6 +1,3 @@
-Here is the updated `README.md` including the official API documentation link and a visual representation of the data flow.
-
----
 
 # Public Transport Data Analysis Dashboard (Israel)
 
