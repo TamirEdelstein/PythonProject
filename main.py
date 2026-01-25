@@ -6,17 +6,17 @@ import plotly.express as px
 # --- הגדרות עמוד ---
 st.set_page_config(layout="wide", page_title="Bus Analysis Dashboard")
 
-st.title("ניתוח קו אוטובוס: מסלול וביצועים")
+st.title("Bus Analysis Dashboard")
 
 # --- ממשק קלט ---
 with st.container(border=True):
     c1, c2 = st.columns(2)
     with c1:
-        line_num = st.text_input("מספר קו (למשל 1):", value="1")
+        line_num = st.text_input("Route Num:", value="1")
     with c2:
-        city = st.text_input("עיר (למשל בת ים):", value="בת ים")
+        city = st.text_input("City:", value="בת ים")
 
-    submit = st.button("טען נתונים ונתח", use_container_width=True)
+    submit = st.button("Load data and analyse", use_container_width=True)
 
 # --- לוגיקת שליפת נתונים ושמירה ב-Session State ---
 if submit:
@@ -78,7 +78,7 @@ if 'df_siri' in st.session_state:
     # חלק המפה
     with col_map:
         with st.container(border=True):
-            st.subheader("📍 מסלול הקו")
+            st.subheader("Line Route📍")
             if 'map_data' in st.session_state:
                 df_stops = pd.DataFrame(st.session_state['map_data'])
                 lat_col, lon_col = 'gtfs_stop__lat', 'gtfs_stop__lon'
