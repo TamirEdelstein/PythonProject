@@ -34,7 +34,7 @@ if submit:
         st.session_state['line_ref'] = line_ref
         st.session_state['route_name'] = route_info.get('route_long_name', 'קו לא ידוע')
 
-        # 2. שליפת מפה (2023)
+        # 2. שליפת מפה
         res_stops = requests.get("https://open-bus-stride-api.hasadna.org.il/gtfs_ride_stops/list", params={
             'gtfs_route__line_refs': line_ref,
             'arrival_time_from': '2023-01-22T12:31:08.469Z',
@@ -44,7 +44,7 @@ if submit:
         if res_stops.status_code == 200:
             st.session_state['map_data'] = res_stops.json()
 
-        # 3. שליפת נתוני SIRI (2024)
+        # 3. שליפת נתוני SIRI
         res_siri = requests.get("https://open-bus-stride-api.hasadna.org.il/siri_rides/list", params={
             'limit': -1, 'gtfs_route__line_refs': line_ref,
             'gtfs_route__date_from': '2024-01-14', 'gtfs_route__date_to': '2024-01-20'
@@ -59,7 +59,7 @@ if submit:
     else:
         st.error("לא נמצא קו תואם ב-GTFS.")
 
-# --- תצוגת התוצאות (מחוץ לבלוק ה-submit) ---
+# --- תצוגת התוצאות  ---
 if 'df_siri' in st.session_state:
     df_siri = st.session_state['df_siri']
 
@@ -75,7 +75,7 @@ if 'df_siri' in st.session_state:
 
     col_map, col_charts = st.columns([2, 1.5])
 
-    # חלק המפה
+    # מפה
     with col_map:
         with st.container(border=True):
             st.subheader("Line Route📍")
@@ -92,7 +92,7 @@ if 'df_siri' in st.session_state:
                     fig_map.update_layout(mapbox_style="open-street-map", margin={"r": 0, "t": 0, "l": 0, "b": 0})
                     st.plotly_chart(fig_map, use_container_width=True)
 
-        # חלק הגרפים
+        # גרפים
     with col_charts:
         with st.container(border=True):
             st.markdown(f"### Average Duration - {selected_day}")
