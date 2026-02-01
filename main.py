@@ -90,14 +90,14 @@ if st.session_state.data:
 
         st.divider()
         # עכשיו שינוי היום לא ימחוק את הנתונים כי הם ב-session_state
-        selected_day = st.selectbox("בחר יום בשבוע לניתוח הגרפים:", options=available_days)
+        selected_day = st.selectbox("Week Day:", options=available_days)
         filtered_siri = df_siri[df_siri['day_name'] == selected_day]
 
         col_map, col_charts = st.columns([2, 1.5])
 
         with col_map:
             with st.container(border=True):
-                st.subheader("📍 מסלול הקו")
+                st.subheader("📍 Route Line")
                 df_stops = pd.DataFrame(data['stops_json'])
                 if not df_stops.empty:
                     df_map = df_stops.dropna(subset=['gtfs_stop__lat', 'gtfs_stop__lon']).drop_duplicates(
