@@ -64,7 +64,7 @@ if submit:
                 # --- שלב 3: שליפת נתוני SIRI ---
                 url_siri = "https://open-bus-stride-api.hasadna.org.il/siri_rides/list"
                 params_siri = {
-                    'limit': -1,
+                    'limit': 1000,
                     'gtfs_route__line_refs': line_ref,
                     'gtfs_route__date_from': '2024-01-14',
                     'gtfs_route__date_to': '2024-01-20'
