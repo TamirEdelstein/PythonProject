@@ -4,7 +4,6 @@ import pandas as pd
 import plotly.express as px
 
 
-# --- פונקציית עזר לבדיקת תקינות תגובה ---
 def check_response(response):
     if response.status_code == 503:
         st.error("❌ The server is currently unavailable. Please try again later (Error 503).")
@@ -15,15 +14,12 @@ def check_response(response):
     return True
 
 
-# --- הגדרות עמוד ---
 st.set_page_config(layout="wide", page_title="Bus Analysis Dashboard")
 st.title("Bus Line Analysis: Route and Performance")
 
-# --- אתחול ה-Session State (הזיכרון של האפליקציה) ---
 if 'data' not in st.session_state:
     st.session_state.data = None
 
-# --- ממשק קלט ---
 with st.container(border=True):
     c1, c2 = st.columns(2)
     with c1:
@@ -33,7 +29,6 @@ with st.container(border=True):
 
     submit = st.button("Load Data & Analyze", use_container_width=True)
 
-# לוגיקת שליפת הנתונים (רצה רק בלחיצה על הכפתור)
 if submit:
     with st.spinner("Connecting to Stride API and fetching bus data..."):
         try:
@@ -48,21 +43,18 @@ if submit:
                     line_ref = routes_json[0].get('line_ref')
                     route_name = routes_json[0].get('route_long_name', 'קו לא ידוע')
 
-                    # שליפת נתוני מפה
                     url_stops = "https://open-bus-stride-api.hasadna.org.il/gtfs_ride_stops/list"
                     res_stops = requests.get(url_stops, params={'gtfs_route__line_refs': line_ref,
                                                                 'arrival_time_from': '2023-01-22T12:31:08.469Z',
                                                                 'arrival_time_to': '2023-01-22T14:31:08.469Z',
                                                                 'limit': 300}, timeout=100)
 
-                    # שליפת נתוני SIRI
                     url_siri = "https://open-bus-stride-api.hasadna.org.il/siri_rides/list"
                     res_siri = requests.get(url_siri, params={'limit': 1000, 'gtfs_route__line_refs': line_ref,
                                                               'gtfs_route__date_from': '2024-01-14',
                                                               'gtfs_route__date_to': '2024-01-20'}, timeout=100)
 
                     if check_response(res_stops) and check_response(res_siri):
-                        # שמירת הכל בזיכרון של ה-Session
                         st.session_state.data = {
                             'route_name': route_name,
                             'line_ref': line_ref,
@@ -74,7 +66,7 @@ if submit:
         except Exception as e:
             st.error(f"❌ Error: {e}")
 
-# --- חלק התצוגה (רץ תמיד אם יש נתונים בזיכרון) ---
+
 if st.session_state.data:
     data = st.session_state.data
     st.info(f"**קו:** {data['route_name']} (Line Ref: {data['line_ref']})")
@@ -89,7 +81,6 @@ if st.session_state.data:
         available_days = [d for d in days_order if d in df_siri['day_name'].unique()]
 
         st.divider()
-        # עכשיו שינוי היום לא ימחוק את הנתונים כי הם ב-session_state
         selected_day = st.selectbox("Week Day:", options=available_days)
         filtered_siri = df_siri[df_siri['day_name'] == selected_day]
 
