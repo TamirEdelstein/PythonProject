@@ -30,7 +30,7 @@ with st.container(border=True):
     submit = st.button("Load Data & Analyze", use_container_width=True)
 
 if submit:
-    # הוספת Spinner לכל תהליך שליפת הנתונים
+    # 1. שימוש ב-st.spinner לחיווי טעינה
     with st.spinner("Connecting to Stride API and fetching bus data..."):
         try:
             # --- שלב 1: קבלת line_ref מ-gtfs_routes ---
@@ -66,7 +66,7 @@ if submit:
                     # --- שלב 3: שליפת נתוני SIRI ---
                     url_siri = "https://open-bus-stride-api.hasadna.org.il/siri_rides/list"
                     params_siri = {
-                        'limit': -1,
+                        'limit': 1000,
                         'gtfs_route__line_refs': line_ref,
                         'gtfs_route__date_from': '2024-01-14',
                         'gtfs_route__date_to': '2024-01-20'
@@ -88,7 +88,7 @@ if submit:
                             selected_day = st.selectbox("בחר יום בשבוע לניתוח הגרפים:", options=available_days, index=0)
                             filtered_siri = df_siri[df_siri['day_name'] == selected_day]
 
-                            # פריסת עמודות
+                            # 2. פריסת עמודות עם יישור גבהים
                             col_map, col_charts = st.columns([2, 1.5])
 
                             with col_map:
@@ -110,22 +110,22 @@ if submit:
                                         st.warning("לא נמצאו נתונים גיאוגרפיים.")
 
                             with col_charts:
-                                # גרף ראשון
+                                # גרף ראשון - Average Duration
                                 with st.container(border=True):
                                     st.markdown(f"**Average Duration - {selected_day}**")
                                     avg_dur = filtered_siri.groupby('hour')['duration_minutes'].mean().reset_index()
                                     fig_line = px.line(avg_dur, x='hour', y='duration_minutes', markers=True)
-                                    # גובה מותאם כדי ליישר קו עם המפה
-                                    fig_line.update_layout(height=355, margin=dict(l=0, r=0, t=30, b=0))
+                                    # גובה מותאם ליישור קו תחתון עם המפה (750px)
+                                    fig_line.update_layout(height=345, margin=dict(l=10, r=10, t=30, b=10))
                                     st.plotly_chart(fig_line, use_container_width=True)
 
-                                # גרף שני
+                                # גרף שני - Ride Distribution
                                 with st.container(border=True):
                                     st.markdown(f"**Ride Distribution - {selected_day}**")
                                     fig_hist = px.histogram(filtered_siri, x='hour', nbins=24,
                                                             color_discrete_sequence=['#ff4b4b'])
-                                    # גובה מותאם כדי ליישר קו עם המפה
-                                    fig_hist.update_layout(height=355, bargap=0.1, margin=dict(l=0, r=0, t=30, b=0))
+                                    # גובה מותאם ליישור קו תחתון עם המפה (750px)
+                                    fig_hist.update_layout(height=345, bargap=0.1, margin=dict(l=10, r=10, t=30, b=10))
                                     st.plotly_chart(fig_hist, use_container_width=True)
                         else:
                             st.warning("לא נמצאו נתוני נסיעות (SIRI) לגרפים.")
@@ -138,5 +138,3 @@ if submit:
             st.error("❌ Timeout: The server took too long to respond.")
         except Exception as e:
             st.error(f"❌ Unexpected Error: {e}")
-
-# סיום ה-Spinner מתבצע אוטומטית ביציאה מבלוק ה-with
