@@ -71,7 +71,7 @@ if submit:
                         'gtfs_route__date_from': '2024-01-14',
                         'gtfs_route__date_to': '2024-01-20'
                     }
-                    res_siri = requests.get(url_siri, params=params_siri, timeout=15)
+                    res_siri = requests.get(url_siri, params=params_siri, timeout=100)
 
                     if check_response(res_stops) and check_response(res_siri):
                         df_siri = pd.DataFrame(res_siri.json())
